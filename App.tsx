@@ -1,23 +1,41 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 
 const App: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
-  const mailtoLink = useMemo(() => {
-    const subject = encodeURIComponent('Novo lead - Página de Vendas');
-    const body = encodeURIComponent(`Nome: ${name}\nEmail: ${email}`);
-    return `mailto:simsourafaell@gmail.com?subject=${subject}&body=${body}`;
-  }, [name, email]);
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!name.trim() || !email.trim()) {
       return;
     }
-    setIsSubmitted(true);
-    window.location.href = mailtoLink;
+    setStatus('sending');
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('email', email);
+      formData.append('_subject', 'Novo lead - Página de Vendas');
+      formData.append('_template', 'table');
+
+      const response = await fetch('https://formsubmit.co/ajax/simsourafaell@gmail.com', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao enviar o formulário.');
+      }
+
+      setIsSubmitted(true);
+      setStatus('success');
+    } catch (error) {
+      setStatus('error');
+    }
   };
 
   return (
@@ -164,6 +182,7 @@ const App: React.FC = () => {
                     name="nome"
                     type="text"
                     required
+                    autoComplete="name"
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     className="mt-2 w-full rounded-xl border border-white/10 bg-brand-gray px-4 py-3 text-white outline-none transition focus:border-brand-accent"
@@ -179,6 +198,7 @@ const App: React.FC = () => {
                     name="email"
                     type="email"
                     required
+                    autoComplete="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     className="mt-2 w-full rounded-xl border border-white/10 bg-brand-gray px-4 py-3 text-white outline-none transition focus:border-brand-accent"
@@ -187,11 +207,24 @@ const App: React.FC = () => {
                 </div>
                 <button
                   type="submit"
+                  disabled={status === 'sending'}
                   className="w-full rounded-full bg-brand-accent px-6 py-3 text-sm font-semibold uppercase tracking-wide text-brand-black transition hover:bg-brand-accentHover"
                 >
-                  Enviar dados
+                  {status === 'sending' ? 'Enviando...' : 'Enviar dados'}
                 </button>
               </form>
+              <div className="mt-4 min-h-[20px] text-sm" aria-live="polite">
+                {status === 'success' && (
+                  <span className="text-emerald-400">
+                    Dados enviados com sucesso! Libere o WhatsApp no card ao lado.
+                  </span>
+                )}
+                {status === 'error' && (
+                  <span className="text-rose-300">
+                    Não conseguimos enviar agora. Verifique os dados e tente novamente.
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="glass flex flex-col justify-between gap-6 rounded-3xl p-8">
@@ -204,16 +237,22 @@ const App: React.FC = () => {
                 O botão do WhatsApp será liberado automaticamente após o envio do formulário.
               </p>
             </div>
-            <a
-              href={isSubmitted ? 'https://wa.me/258834757908' : undefined}
-              className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold uppercase tracking-wide transition ${
-                isSubmitted
-                  ? 'bg-emerald-400 text-brand-black hover:bg-emerald-300'
-                  : 'cursor-not-allowed border border-white/20 text-white/40'
-              }`}
-            >
-              Falar agora no WhatsApp
-            </a>
+            {isSubmitted ? (
+              <a
+                href="https://wa.me/258834757908"
+                className="inline-flex items-center justify-center rounded-full bg-emerald-400 px-6 py-3 text-sm font-semibold uppercase tracking-wide text-brand-black transition hover:bg-emerald-300"
+              >
+                Falar agora no WhatsApp
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="cursor-not-allowed rounded-full border border-white/20 px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white/40"
+              >
+                Falar agora no WhatsApp
+              </button>
+            )}
             {!isSubmitted && (
               <p className="text-xs text-white/50">
                 Preencha o formulário acima para liberar o acesso ao WhatsApp.
